@@ -53,8 +53,7 @@ app.post('/api/proxy', async (req, res) => {
     }
 });
 
-const PORT = 3000;
-app.listen(PORT, () => {
-    console.log(`✅ Proxy Server อัปเดตใหม่พร้อมทำงานที่: http://localhost:${PORT}`);
-    console.log(`>> รองรับระบบตรวจสอบ API Key ทุกรูปแบบแล้ว <<`);
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ Proxy Server พร้อมทำงานบนพอร์ต: ${PORT}`);
 });
