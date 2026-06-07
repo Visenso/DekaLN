@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deka Search - ค้นหาคำพิพากษาศาลฎีกา</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Noto+Sans+Thai:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'Noto Sans Thai', 'sans-serif'], },
+                    colors: {
+                        apple: { bg: '#f5f5f7', card: '#ffffff', text: '#1d1d1f', secondary: '#86868b', blue: '#0071e3', blueHover: '#0077ED', border: '#d2d2d7' }
+                    },
+                    boxShadow: {
+                        'apple': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                        'apple-lg': '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025)'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #f5f5f7; color: #1d1d1f; -webkit-font-smoothing: antialiased; }
+        .segmented-control { background-color: rgba(118, 118, 128, 0.12); padding: 2px; border-radius: 8px; display: flex; flex-wrap: wrap; }
+        .segment-btn { flex: 1; min-width: 80px; text-align: center; padding: 6px 12px; font-size: 13px; font-weight: 500; border-radius: 6px; cursor: pointer; transition: all 0.2s ease; color: #1d1d1f; }
+        .segment-btn.active { background-color: #ffffff; box-shadow: 0 3px 8px rgba(0,0,0,0.12), 0 3px 1px rgba(0,0,0,0.04); }
+        .apple-input { width: 100%; background-color: #ffffff; border: 1px solid #d2d2d7; border-radius: 12px; padding: 12px 16px; font-size: 16px; outline: none; transition: all 0.2s ease; }
+        .apple-input:focus { border-color: #0071e3; box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.2); }
+        .apple-btn { background-color: #0071e3; color: white; border-radius: 999px; padding: 12px 24px; font-size: 16px; font-weight: 500; text-align: center; cursor: pointer; transition: all 0.2s ease; display: flex; justify-content: center; items-align: center; gap: 8px; }
+        .apple-btn:hover { background-color: #0077ED; }
+        .apple-btn:active { transform: scale(0.98); }
+        .glass-header { background: rgba(245, 245, 247, 0.72); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid rgba(0,0,0,0.1); }
+        .spinner { border: 3px solid rgba(0, 113, 227, 0.2); border-left-color: #0071e3; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .fade-in { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        select.apple-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2386868b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; padding-right: 40px; }
+        mark.search-highlight { background-color: rgba(255, 215, 0, 0.4); color: #000; padding: 0 2px; border-radius: 4px; font-weight: 500; }
+        .icon-btn { color: #86868b; transition: all 0.2s ease; padding: 6px; border-radius: 50%; }
+        .icon-btn:hover { background-color: #f5f5f7; color: #1d1d1f; }
+        .card-clickable { cursor: pointer; transition: transform 0.1s ease, box-shadow 0.2s ease; }
+        .card-clickable:active { transform: scale(0.99); }
+    </style>
+</head>
+<body class="min-h-screen pb-12 relative">
+
+    <nav class="glass-header sticky top-0 z-40 w-full py-4 px-6">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <i data-lucide="scale" class="text-apple-blue w-6 h-6"></i>
+                <h1 class="font-semibold text-lg tracking-tight">Deka Search</h1>
+            </div>
+            <button onclick="toggleSettings()" class="text-apple-secondary hover:text-apple-text transition-colors" title="ตั้งค่า API Key">
+                <i data-lucide="settings" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </nav>
+
+    <main class="max-w-3xl mx-auto mt-8 px-4 sm:px-6">
+        
+        <!-- API Key Settings -->
+        <div id="settingsCard" class="bg-apple-card rounded-2xl p-6 shadow-apple mb-6 hidden border border-apple-border fade-in">
+            <h2 class="text-sm font-semibold text-apple-secondary mb-3 uppercase tracking-wider">การตั้งค่าการเชื่อมต่อ</h2>
+            <div class="flex gap-3">
+                <input type="password" id="apiKeyInput" placeholder="YOUR_API_KEY" class="apple-input flex-1">
+                <button onclick="saveApiKey()" class="apple-btn px-6">บันทึก</button>
+            </div>
+            <p id="apiKeyStatus" class="text-xs mt-2 text-green-600 hidden">✓ บันทึก API Key สำเร็จ</p>
+        </div>
+
+        <div class="bg-apple-card rounded-3xl p-6 sm:p-8 shadow-apple-lg border border-apple-border/50">
+            
+            <div class="segmented-control mb-8 mx-auto max-w-lg">
+                <div class="segment-btn active" onclick="switchTab('ai')" id="tab-ai">ค้นหาด้วย AI</div>
+                <div class="segment-btn" onclick="switchTab('law')" id="tab-law">ตามมาตรา</div>
+                <div class="segment-btn" onclick="switchTab('deka')" id="tab-deka">เลขฎีกา</div>
+                <div class="segment-btn flex items-center justify-center gap-1" onclick="switchTab('starred')" id="tab-starred"><i data-lucide="star" class="w-3 h-3 fill-current"></i> ติดดาว</div>
+            </div>
+
+            <div id="form-ai" class="search-form space-y-4 fade-in">
+                <h2 class="text-xl font-semibold text-center mb-6">ค้นหาด้วย AI และคำสำคัญ</h2>
+                <input type="text" id="aiQuestion" placeholder="เช่น ดูหมิ่น กู้ยืมเงิน..." class="apple-input">
+                <button onclick="performSearch('ai')" class="apple-btn w-full mt-4"><i data-lucide="search" class="w-5 h-5"></i> ค้นหาข้อมูล</button>
+            </div>
+
+            <div id="form-law" class="search-form space-y-4 hidden fade-in">
+                <h2 class="text-xl font-semibold text-center mb-6">ค้นหาจากตัวบทกฎหมาย</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-apple-secondary mb-1">ตัวบทกฎหมาย</label>
+                        <select id="lawCode" class="apple-input cursor-pointer">
+                            <option value="ป.อ.">ป.อ.</option>
+                            <option value="ป.วิ.อ.">ป.วิ.อ.</option>
+                            <option value="ป.พ.พ.">ป.พ.พ.</option>
+                            <option value="ป.วิ.พ.">ป.วิ.พ.</option>
+                            <option value="พ.ร.บ.จราจรทางบก">พ.ร.บ.จราจรทางบก</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-apple-secondary mb-1">มาตรา (คั่นด้วยลูกน้ำ)</label>
+                        <input type="text" id="lawSections" placeholder="เช่น 43, 44/1" class="apple-input">
+                    </div>
+                </div>
+                <button onclick="performSearch('law')" class="apple-btn w-full mt-4"><i data-lucide="search" class="w-5 h-5"></i> ค้นหาจากมาตรา</button>
+            </div>
+
+            <div id="form-deka" class="search-form space-y-4 hidden fade-in">
+                <h2 class="text-xl font-semibold text-center mb-6">ค้นหาจากเลขฎีกา</h2>
+                <input type="text" id="dekaNo" placeholder="เช่น 2289/2568" class="apple-input">
+                <button onclick="performSearch('deka')" class="apple-btn w-full mt-4"><i data-lucide="file-text" class="w-5 h-5"></i> ค้นหา</button>
+            </div>
+            
+            <div id="form-starred" class="search-form space-y-4 hidden fade-in text-center">
+                <h2 class="text-xl font-semibold mb-2">คลังฎีกาที่บันทึกไว้</h2>
+                <p class="text-sm text-apple-secondary mb-4">ข้อมูลเหล่านี้ถูกบันทึกไว้ในเบราว์เซอร์ของคุณ</p>
+                <button onclick="renderStarred()" class="apple-btn w-full mx-auto max-w-xs"><i data-lucide="refresh-cw" class="w-5 h-5"></i> โหลดข้อมูลติดดาว</button>
+            </div>
+        </div>
+
+        <div id="resultsContainer" class="mt-8 space-y-4 hidden">
+            <div id="loadingState" class="hidden flex flex-col items-center justify-center py-12">
+                <div class="spinner mb-4"></div>
+                <p class="text-apple-secondary mt-3">กำลังค้นหาข้อมูล...</p>
+            </div>
+            <div id="resultsHeader" class="hidden flex justify-between items-center mb-2 px-2">
+                <span class="text-sm font-medium text-apple-secondary" id="resultCount"></span>
+            </div>
+            <div id="resultsList" class="space-y-4"></div>
+        </div>
+    </main>
+
+    <!-- ป๊อปอัปแสดงรายละเอียดคดี (Modal) - เวอร์ชันเสถียร -->
+    <div id="caseModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 hidden flex justify-center items-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col transform scale-95 transition-transform duration-300 relative" id="modalContent">
+            <!-- Header -->
+            <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-start bg-gray-50 rounded-t-3xl shrink-0">
+                <div class="pr-8">
+                    <h3 class="font-bold text-xl text-apple-text mb-1" id="modalTitle"></h3>
+                    <div id="modalYear" class="text-sm font-medium text-apple-blue flex items-center gap-1.5"></div>
+                </div>
+                <button onclick="closeModal()" class="absolute top-5 right-5 p-2 bg-gray-200/60 hover:bg-gray-300 text-gray-600 rounded-full transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <!-- Body -->
+            <div class="p-6 overflow-y-auto grow">
+                <div class="mb-6">
+                    <h4 class="font-semibold text-gray-800 mb-2 flex items-center gap-2"><i data-lucide="align-left" class="w-4 h-4"></i> สรุปย่อ</h4>
+                    <p id="modalText" class="text-sm leading-relaxed text-gray-700 bg-white p-4 rounded-xl border border-gray-100"></p>
+                </div>
+                <div class="mb-2">
+                    <h4 class="font-semibold text-gray-800 mb-2 flex items-center gap-2"><i data-lucide="scale" class="w-4 h-4"></i> มาตราที่เกี่ยวข้องอ้างอิง</h4>
+                    <p id="modalLawRaw" class="text-sm leading-relaxed text-gray-700 bg-blue-50/50 p-4 rounded-xl border border-blue-100"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toastMessage" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-5 py-2.5 rounded-full shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none z-[60] text-sm font-medium flex items-center gap-2">
+        <i data-lucide="check-circle" class="w-4 h-4"></i>
+        <span id="toastText">ดำเนินการสำเร็จ</span>
+    </div>
+
+    <script>
+        // Global variables
+        window.currentResults = []; 
+        let termsToHighlight = [];
+
+        lucide.createIcons();
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedKey = localStorage.getItem('slegaltools_api_key');
+            if (savedKey) document.getElementById('apiKeyInput').value = savedKey;
+            else toggleSettings();
+        });
+
+        function toggleSettings() { document.getElementById('settingsCard').classList.toggle('hidden'); }
+        function saveApiKey() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            if (key) {
+                localStorage.setItem('slegaltools_api_key', key);
+                document.getElementById('apiKeyStatus').classList.remove('hidden');
+                setTimeout(() => { document.getElementById('apiKeyStatus').classList.add('hidden'); toggleSettings(); }, 1500);
+            }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.segment-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            document.querySelectorAll('.search-form').forEach(form => form.classList.add('hidden'));
+            document.getElementById(`form-${tabId}`).classList.remove('hidden');
+            
+            // ซ่อนผลลัพธ์เก่าเมื่อเปลี่ยนแท็บ
+            document.getElementById('resultsContainer').classList.add('hidden');
+            if(tabId === 'starred') renderStarred();
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toastMessage');
+            document.getElementById('toastText').innerText = message;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => toast.classList.add('opacity-0'), 2500);
+        }
+
+        function highlightText(text, terms) {
+            if (!text || !terms || terms.length === 0) return text || '';
+            let highlighted = String(text);
+            const validTerms = terms.filter(t => t && t.trim().length > 1).sort((a, b) => b.length - a.length);
+            validTerms.forEach(term => {
+                const safeTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(`(${safeTerm})`, 'gi');
+                highlighted = highlighted.replace(regex, '<mark class="search-highlight">$1</mark>');
+            });
+            return highlighted;
+        }
+
+        /* --- ระบบจัดการข้อมูลและ Clean ข้อความ --- */
+        function cleanLawRaw(text) {
+            if (!text) return '';
+            return text.replace(/ฎีกาอื่นที่เกี่ยวข้องแยกตามกฎหมายและมาตรา\s*/g, '').trim();
+        }
+
+        // ฟังก์ชันดึงมาตราอ้างอิง (เขียนระบบครอบคลุมทุกโครงสร้างของฐานข้อมูล)
+        function getLawReferences(item) {
+            try {
+                // ลำดับที่ 1: ดึงจาก law_refs โดยสกัดค่าทั้งหมดอย่างรอบคอบ
+                if (item.law_refs && Array.isArray(item.law_refs)) {
+                    const refs = item.law_refs.map(r => {
+                        if (typeof r === 'string') return r; 
+                        
+                        // ป้องกันข้อมูลแหว่ง (null, undefined)
+                        const code = r.law_code || r.law_full_name || '';
+                        const sec = r.section_text !== undefined ? r.section_text : r.section;
+                        
+                        if (code && sec !== undefined && sec !== null && sec !== '') {
+                            const secStr = Array.isArray(sec) ? sec.join(', ') : sec;
+                            return `${code} ม. ${secStr}`;
+                        } else if (r.raw_fragment) {
+                            return String(r.raw_fragment).trim();
+                        }
+                        return '';
+                    }).filter(r => r !== '');
+                    
+                    if (refs.length > 0) return [...new Set(refs)].join(', ');
+                }
+
+                // ลำดับที่ 2: สำรองกรณีดึงจาก raw_fragment ชั้นนอกสุด
+                if (item.raw_fragment && typeof item.raw_fragment === 'string') {
+                    return item.raw_fragment.trim();
+                }
+                
+                // ลำดับที่ 3: นำ law_raw มากรองคำฟุ่มเฟือยทิ้ง
+                if (item.law_raw && typeof item.law_raw === 'string') {
+                    return cleanLawRaw(item.law_raw);
+                }
+            } catch (error) {
+                console.error("เกิดข้อผิดพลาดในการอ่านมาตราอ้างอิง:", error);
+            }
+
+            return '';
+        }
+
+        /* --- ระบบดาว (Local Storage) --- */
+        function getStarred() { return JSON.parse(localStorage.getItem('slegaltools_starred_items') || '{}'); }
+        
+        function toggleStar(index, event) {
+            if (event) event.stopPropagation(); // ป้องกันไม่ให้คลิกดาวแล้วป๊อปอัปเด้ง
+            const item = window.currentResults[index];
+            if (!item) return;
+
+            const dekaNo = item.deka_no;
+            const starred = getStarred();
+            const safeId = dekaNo.replace(/[^a-zA-Z0-9]/g, '-');
+            const icon = document.getElementById(`star-icon-${safeId}`);
+
+            if (starred[dekaNo]) {
+                delete starred[dekaNo];
+                if(icon) { icon.classList.remove('fill-yellow-400', 'text-yellow-400'); icon.classList.add('text-apple-secondary'); }
+                showToast(`ยกเลิกติดดาว ฎ. ${dekaNo}`);
+                
+                // หากอยู่ในหน้าติดดาว ให้รีเฟรชลิสต์ทันที
+                if(document.getElementById('tab-starred').classList.contains('active')) renderStarred();
+            } else {
+                starred[dekaNo] = item; // เก็บข้อมูลทั้งหมดของคดีลง LocalStorage เลย
+                if(icon) { icon.classList.add('fill-yellow-400', 'text-yellow-400'); icon.classList.remove('text-apple-secondary'); }
+                showToast(`บันทึก ฎ. ${dekaNo} เข้าคลังแล้ว`);
+            }
+            localStorage.setItem('slegaltools_starred_items', JSON.stringify(starred));
+        }
+
+        function renderStarred() {
+            termsToHighlight = []; // ปิดไฮไลท์เวลาดูของที่ติดดาว
+            const starredData = getStarred();
+            const items = Object.values(starredData);
+            
+            document.getElementById('resultsContainer').classList.remove('hidden');
+            document.getElementById('loadingState').classList.add('hidden');
+            
+            // ส่งข้อมูลไปวาดการ์ด (ใช้ตัวแปรเดียวกันเพื่อให้กด Copy/เปิด Modal ได้)
+            renderCards(items, 'starred');
+        }
+
+        /* --- ระบบคัดลอก --- */
+        function copyDekaData(index, event) {
+            if (event) event.stopPropagation(); 
+            const item = window.currentResults[index];
+            if (!item) return;
+
+            const dekaNo = item.deka_no || 'ไม่ระบุเลข';
+            const year = item.year_be || '-';
+            const shortText = item.short_text || '';
+            const lawRaw = getLawReferences(item);
+
+            let copyText = `คำพิพากษาศาลฎีกาที่ ${dekaNo}/${year}\n`;
+            if (lawRaw) copyText += `กฎหมายที่เกี่ยวข้อง: ${lawRaw}\n\n`;
+            copyText += `สรุปย่อ: ${shortText}`;
+
+            const textArea = document.createElement("textarea");
+            textArea.value = copyText;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.select();
+            try { document.execCommand('copy'); showToast("คัดลอกข้อมูลสำเร็จ"); } 
+            catch (err) { showToast("ไม่สามารถคัดลอกได้"); }
+            document.body.removeChild(textArea);
+        }
+
+        /* --- ระบบ ป๊อปอัป (Modal) - เวอร์ชันเสถียร (ไม่ดึง API เพิ่ม) --- */
+        function openModal(index) {
+            const item = window.currentResults[index];
+            if (!item) return;
+
+            const dekaNo = item.deka_no || 'ไม่ระบุเลข';
+            const year = item.year_be || '-';
+            const displayShortText = highlightText(item.short_text || 'ไม่มีข้อมูลสรุปย่อ', termsToHighlight);
+            const displayLawRaw = highlightText(getLawReferences(item) || 'ไม่พบข้อมูลมาตราที่อ้างอิง', termsToHighlight);
+
+            document.getElementById('modalTitle').innerHTML = highlightText(item.title || `คำพิพากษาศาลฎีกาที่ ${dekaNo}`, termsToHighlight);
+            document.getElementById('modalYear').innerHTML = `<i data-lucide="book-open" class="w-4 h-4"></i> ปี พ.ศ. ${year} &nbsp;|&nbsp; ฎ. ${dekaNo}`;
+            document.getElementById('modalText').innerHTML = displayShortText;
+            document.getElementById('modalLawRaw').innerHTML = displayLawRaw;
+
+            // เปิด Modal แบบมี Animation
+            const modal = document.getElementById('caseModal');
+            const content = document.getElementById('modalContent');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('caseModal');
+            const content = document.getElementById('modalContent');
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        // ปิดป๊อปอัปเมื่อคลิกพื้นที่ว่างด้านนอก
+        document.getElementById('caseModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        /* --- ระบบค้นหาหลัก --- */
+        async function performSearch(type) {
+            const apiKey = localStorage.getItem('slegaltools_api_key');
+            if (!apiKey) return toggleSettings();
+
+            let cleanApiKey = apiKey.trim().replace(/['"]+/g, '').replace(/^bearer\s*/i, '').replace(/\s+/g, '');
+            let endpoint = '';
+            let body = {};
+            termsToHighlight = [];
+
+            if (type === 'ai') {
+                const q = document.getElementById('aiQuestion').value.trim();
+                if (!q) return alert("กรุณากรอกคำสำคัญ");
+                endpoint = '/api/search/ai'; body = { question: q, top_k: 10 };
+                termsToHighlight = q.split(' ').filter(t => t.length > 1);
+            } 
+            else if (type === 'law') {
+                const code = document.getElementById('lawCode').value;
+                const secStr = document.getElementById('lawSections').value.trim();
+                if (!secStr) return alert("กรุณากรอกมาตรา");
+                const secArr = secStr.split(',').map(s => s.trim()).filter(s => s);
+                endpoint = '/api/search/law'; body = { law_code: code, sections: secArr, top_k: 10 };
+            } 
+            else if (type === 'deka') {
+                const dNo = document.getElementById('dekaNo').value.trim();
+                if (!dNo) return alert("กรุณากรอกเลขฎีกา");
+                endpoint = '/api/tool/get_deka_case'; body = { deka_no: dNo, include_law_refs: true, include_long_text: false };
+                termsToHighlight = [dNo];
+            }
+
+            document.getElementById('resultsContainer').classList.remove('hidden');
+            document.getElementById('resultsHeader').classList.add('hidden');
+            document.getElementById('loadingState').classList.remove('hidden');
+            document.getElementById('resultsList').innerHTML = '';
+
+            try {
+                const proxyUrl = 'http://localhost:3000/api/proxy';
+                const response = await fetch(proxyUrl, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${cleanApiKey}`, 'X-API-Key': cleanApiKey, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ endpoint: endpoint, payload: body })
+                });
+                const data = await response.json();
+                
+                // สำหรับตรวจสอบโครงสร้างข้อมูลดิบ (F12)
+                console.log("==================================");
+                console.log("🔍 ข้อมูลดิบจาก API (Raw Data):", data);
+                console.log("==================================");
+
+                if (!response.ok) throw new Error(data.error || 'เกิดข้อผิดพลาดในการดึงข้อมูล');
+                
+                extractAndRenderResults(data, type);
+            } catch (error) {
+                document.getElementById('resultsList').innerHTML = `
+                    <div class="bg-red-50 text-red-600 p-4 rounded-xl text-center border border-red-100">
+                        <i data-lucide="alert-circle" class="w-6 h-6 mx-auto mb-2"></i><p class="font-medium">ข้อผิดพลาด: ${error.message}</p>
+                    </div>`;
+                lucide.createIcons();
+            } finally {
+                document.getElementById('loadingState').classList.add('hidden');
+            }
+        }
+
+        function extractAndRenderResults(apiResponse, searchType) {
+            let items = [];
+            
+            // กรณีค้นหาด้วยเลขฎีกา เราจะดักจับ law_refs ที่อยู่นอกกล่อง case ด้วย
+            if (searchType === 'deka') {
+                let caseObj = null;
+                
+                if (apiResponse?.data?.case) {
+                    caseObj = apiResponse.data.case;
+                    // ⭐️ อุดช่องโหว่ API: หาก law_refs ถูกส่งมาไว้ข้างนอก (ระดับ data) ให้ดึงมายัดใส่ใน case
+                    if (apiResponse.data.law_refs && !caseObj.law_refs) {
+                        caseObj.law_refs = apiResponse.data.law_refs;
+                    }
+                }
+                else if (apiResponse?.data?.case_id) caseObj = apiResponse.data;
+                else if (apiResponse?.case_id) caseObj = apiResponse;
+                
+                if (caseObj) items = [caseObj];
+                
+            } else {
+                let potentialArrays = [];
+                const scan = (obj) => {
+                    if (!obj || typeof obj !== 'object') return;
+                    for (let k in obj) {
+                        if (Array.isArray(obj[k])) potentialArrays.push(obj[k]);
+                        else if (typeof obj[k] === 'object') scan(obj[k]);
+                    }
+                };
+                if (Array.isArray(apiResponse)) potentialArrays.push(apiResponse);
+                else {
+                    if (apiResponse?.data?.results && Array.isArray(apiResponse.data.results)) potentialArrays.push(apiResponse.data.results);
+                    scan(apiResponse.data || apiResponse);
+                }
+                for (let arr of potentialArrays) {
+                    if (arr && arr.length > 0 && (arr[0].deka_no || arr[0].title || arr[0].case_id)) { items = arr; break; }
+                }
+            }
+
+            // จัดเรียงข้อมูลให้ ปี พ.ศ. ล่าสุดขึ้นก่อน
+            items.sort((a, b) => {
+                const yearA = parseInt(a.year_be) || 0;
+                const yearB = parseInt(b.year_be) || 0;
+                return yearB - yearA; 
+            });
+
+            renderCards(items, searchType);
+        }
+
+        function renderCards(items, viewType) {
+            window.currentResults = items;
+            const resultsList = document.getElementById('resultsList');
+            const starredData = getStarred();
+
+            if (!items || items.length === 0) {
+                resultsList.innerHTML = `<div class="text-center py-8 text-apple-secondary bg-white rounded-2xl shadow-sm border border-apple-border/50"><i data-lucide="inbox" class="w-12 h-12 mx-auto mb-3 opacity-50"></i><p>ไม่พบผลลัพธ์คำพิพากษาที่ตรงกับเงื่อนไข</p></div>`;
+                lucide.createIcons(); return;
+            }
+
+            document.getElementById('resultsHeader').classList.remove('hidden');
+            document.getElementById('resultCount').innerText = viewType === 'starred' ? `คดีติดดาว ${items.length} รายการ` : `พบข้อมูล ${items.length} รายการ`;
+
+            const html = items.map((item, index) => {
+                const title = item.title || `คำพิพากษาศาลฎีกาที่ ${item.deka_no || 'N/A'}`;
+                const dekaNo = item.deka_no || 'ไม่ระบุเลข';
+                const year = item.year_be || '-';
+                const safeId = dekaNo.replace(/[^a-zA-Z0-9]/g, '-');
+                
+                if (item.matched_terms && Array.isArray(item.matched_terms)) {
+                    termsToHighlight = [...new Set([...termsToHighlight, ...item.matched_terms])];
+                }
+
+                const displayShortText = highlightText(item.short_text || 'ไม่มีสรุปย่อสำหรับคดีนี้', termsToHighlight);
+                const isStarred = starredData[dekaNo] ? true : false;
+                const starClass = isStarred ? 'fill-yellow-400 text-yellow-400' : 'text-apple-secondary';
+
+                // ดึง Law Raw
+                const lawRawContent = getLawReferences(item);
+                let lawRawHtml = '';
+                if (lawRawContent) {
+                    // กรณีพบข้อมูลมาตรา
+                    lawRawHtml = `
+                        <div class="mt-4 p-3 bg-blue-50/50 rounded-xl border border-blue-100 flex items-start gap-2">
+                            <i data-lucide="scale" class="w-4 h-4 text-apple-blue mt-0.5 shrink-0"></i>
+                            <div>
+                                <p class="text-xs font-semibold text-apple-blue mb-0.5">มาตราที่เกี่ยวข้องอ้างอิง</p>
+                                <p class="text-sm text-gray-700 leading-relaxed">${highlightText(lawRawContent, termsToHighlight)}</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // กรณี API ไม่มีข้อมูลมาตราส่งมาให้
+                    lawRawHtml = `
+                        <div class="mt-4 p-3 bg-gray-50/50 rounded-xl border border-gray-100 flex items-start gap-2 opacity-70">
+                            <i data-lucide="scale" class="w-4 h-4 text-gray-400 mt-0.5 shrink-0"></i>
+                            <div>
+                                <p class="text-xs font-semibold text-gray-500 mb-0.5">มาตราที่เกี่ยวข้องอ้างอิง</p>
+                                <p class="text-sm text-gray-400 leading-relaxed">ไม่ระบุ หรือไม่มีข้อมูลในระบบสรุปย่อ</p>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="bg-apple-card rounded-2xl p-5 sm:p-6 shadow-sm border border-apple-border/50 hover:shadow-md card-clickable fade-in relative" style="animation-delay: ${index * 0.05}s" onclick="openModal(${index})">
+                        <div class="absolute top-4 right-4 flex items-center gap-1">
+                            <button onclick="copyDekaData(${index}, event)" class="icon-btn" title="คัดลอกข้อมูล"><i data-lucide="copy" class="w-5 h-5"></i></button>
+                            <button onclick="toggleStar(${index}, event)" class="icon-btn" title="บันทึก/ติดดาว"><i data-lucide="star" id="star-icon-${safeId}" class="w-5 h-5 ${starClass}"></i></button>
+                        </div>
+                        <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-3 pr-20">
+                            <h3 class="font-semibold text-lg leading-tight text-apple-text">${highlightText(title, termsToHighlight)}</h3>
+                        </div>
+                        <p class="text-sm text-apple-secondary mb-3 inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 rounded-full">
+                            <i data-lucide="book-open" class="w-4 h-4"></i> ปี พ.ศ. ${year}
+                        </p>
+                        <div class="text-gray-700 text-sm leading-relaxed bg-gray-50 p-4 rounded-xl border border-gray-100/80">
+                            ${displayShortText}
+                        </div>
+                        ${lawRawHtml}
+                    </div>
+                `;
+            }).join('');
+
+            resultsList.innerHTML = html;
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>
