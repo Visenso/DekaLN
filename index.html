@@ -408,7 +408,7 @@
             document.getElementById('resultsList').innerHTML = '';
 
             try {
-                const proxyUrl = 'https://dekaln.onrender.com';
+                const proxyUrl = 'https://dekaln.onrender.com/api/proxy';
                 const response = await fetch(proxyUrl, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${cleanApiKey}`, 'X-API-Key': cleanApiKey, 'Content-Type': 'application/json' },
